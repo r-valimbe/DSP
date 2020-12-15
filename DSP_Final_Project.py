@@ -4,6 +4,7 @@ import wave
 import time
 root = tk.Tk()
 
+
 def start(scale, entry, label, v):
     '''
     In here we will first take the number of seconds they want to record from the scale and set that to the Duration
@@ -16,17 +17,30 @@ def start(scale, entry, label, v):
 
     '''
 
+    #The following variables are common across all the 5 different voices selected and so, will only be changed there for space considerations
+
+    CHANNELS = 1
+    RATE = 8000
+    DURATION = 0
+    WIDTH = 2
 
     if len(entry.get()) == 0: #can try and get rid of invalid characters when saving file too but that won't be necessary
-        label['text'] = 'File name cannot be empty'
+        label['text'] = 'File name cannot be empty!'
     else:
-        duration = scale.get()
+        DURATION = scale.get()
         output_wavfile = entry.get()
 
-        label['text'] = 'You will be recording for ' + str(duration) + ' seconds'
+        label['text'] = 'You will be recording for ' + str(DURATION) + ' seconds'
 
         if v.get() == 1:
-        # voice1(output_wavfile, duration)
+
+        # --------------------------------------------------------------------------------------------------------------
+
+        # Here we can set parameters like frequency and gain that give us the different voices. We don't need the
+        # functions then
+
+        # --------------------------------------------------------------------------------------------------------------
+
             print("1")
         elif v.get()  == 2:
         # voice2(output_wavfile, duration)
@@ -39,37 +53,49 @@ def start(scale, entry, label, v):
             print("4")
         else:
             print("5")
-        #after whatever operation we do
-        label['text'] = 'Successfully saved ' + output_wavfile + '.wav file'
 
+
+        N_FRAMES = DURATION * RATE
+        BLOCKLEN = 1024
+        output_wf = wave.open(output_wavfile + ".wav", 'w')  # wave file
+        output_wf.setframerate(RATE)
+        output_wf.setsampwidth(WIDTH)
+        output_wf.setnchannels(CHANNELS)
+
+        p = pyaudio.PyAudio()
+
+        # Open audio stream
+        stream = p.open(
+            format=p.get_format_from_width(WIDTH),
+            channels=CHANNELS,
+            rate=RATE,
+            input=True,
+            output=True)
+
+
+        # This is the actual thing running
+        # i = 0
+        # while i < N_FRAMES:
+        #     input_block = stream.read(BLOCKLEN)
+
+
+    # after whatever operation we do
+    label['text'] = 'Successfully saved ' + output_wavfile + '.wav file'
 
     pass
 
-def voice1(output_wavfile, duration):
+# ----------------------------------------------------------------------------------------------------------------------
+
+# If we do it the above way then we won't need 5 different functions for 5 things plus we would only need just 1 call
+# to make the stream and wave file and we can ensure they are closed properly
+
+# ----------------------------------------------------------------------------------------------------------------------
+
+def voice1(output_wavfile, DURATION):
     '''
     Do the pyaudio stuff, set the duration as the duration variable passed in
 
     '''
-    CHANNELS = 1
-    RATE = 8000
-    WIDTH = 2
-    DURATION = duration
-    N_FRAMES = DURATION * RATE
-    output_wf = wave.open(output_wavfile + ".wav", 'w')  # wave file
-    output_wf.setframerate(RATE)
-    output_wf.setsampwidth(WIDTH)
-    output_wf.setnchannels(CHANNELS)
-
-    p = pyaudio.PyAudio()
-
-    # Open audio stream
-    stream = p.open(
-        format=p.get_format_from_width(WIDTH),
-        channels=CHANNELS,
-        rate=RATE,
-        input=True,
-        output=True)
-    pass
 
 def voice2(output_wavfile, duration):
     pass
@@ -79,6 +105,8 @@ def voice3(output_wavfile, duration):
 
 def voice4(output_wavfile, duration):
     pass
+
+
 v= tk.IntVar()
 v.set(1)
 root.title("DSP Lab Final Project")
@@ -126,3 +154,4 @@ start_button.place(x=205, y = 340)
 indicator_label = tk.Label(root, text = "")
 indicator_label.place(x=0, y = 360)
 root.mainloop()
+
