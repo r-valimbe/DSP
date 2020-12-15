@@ -47,13 +47,12 @@ def voice1(output_wavfile, duration):
     Do the pyaudio stuff, set the duration as the duration variable passed in
 
     '''
-    CHANNELS = 0
-    RATE = 0
-    signal_length = 0
-    WIDTH = 0
+    CHANNELS = 1
+    RATE = 8000
+    WIDTH = 2
     DURATION = duration
-    BLOCKLEN = 0
-    output_wf = wave.open(output_wavfile, 'w')  # wave file
+    N_FRAMES = DURATION * RATE
+    output_wf = wave.open(output_wavfile + ".wav", 'w')  # wave file
     output_wf.setframerate(RATE)
     output_wf.setsampwidth(WIDTH)
     output_wf.setnchannels(CHANNELS)
