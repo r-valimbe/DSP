@@ -3,6 +3,8 @@ import tkinter as tk
 import wave
 import time
 root = tk.Tk()
+from math import pi, cos, sin
+import numpy as np
 
 
 def start(scale, entry, label, v):
@@ -23,6 +25,7 @@ def start(scale, entry, label, v):
     RATE = 8000
     DURATION = 0
     WIDTH = 2
+    BLOCKLEN = 1024
 
     if len(entry.get()) == 0: #can try and get rid of invalid characters when saving file too but that won't be necessary
         label['text'] = 'File name cannot be empty!'
@@ -33,14 +36,7 @@ def start(scale, entry, label, v):
         label['text'] = 'You will be recording for ' + str(DURATION) + ' seconds'
 
         if v.get() == 1:
-
-        # --------------------------------------------------------------------------------------------------------------
-
-        # Here we can set parameters like frequency and gain that give us the different voices. We don't need the
-        # functions then
-
-        # --------------------------------------------------------------------------------------------------------------
-
+            voice1(output_wavfile, DURATION, BLOCKLEN, RATE, WIDTH, CHANNELS)
             print("1")
         elif v.get()  == 2:
         # voice2(output_wavfile, duration)
@@ -54,48 +50,58 @@ def start(scale, entry, label, v):
         else:
             print("5")
 
-
-        N_FRAMES = DURATION * RATE
-        BLOCKLEN = 1024
-        output_wf = wave.open(output_wavfile + ".wav", 'w')  # wave file
-        output_wf.setframerate(RATE)
-        output_wf.setsampwidth(WIDTH)
-        output_wf.setnchannels(CHANNELS)
-
-        p = pyaudio.PyAudio()
-
-        # Open audio stream
-        stream = p.open(
-            format=p.get_format_from_width(WIDTH),
-            channels=CHANNELS,
-            rate=RATE,
-            input=True,
-            output=True)
-
-
-        # This is the actual thing running
-        # i = 0
-        # while i < N_FRAMES:
-        #     input_block = stream.read(BLOCKLEN)
-
-
     # after whatever operation we do
-    label['text'] = 'Successfully saved ' + output_wavfile + '.wav file'
+        label['text'] = 'Successfully saved ' + output_wavfile + '.wav file'
 
     pass
 
-# ----------------------------------------------------------------------------------------------------------------------
 
-# If we do it the above way then we won't need 5 different functions for 5 things plus we would only need just 1 call
-# to make the stream and wave file and we can ensure they are closed properly
+# Rohan working on voice1 to be high pitch - not quite done yet
+def voice1(output_wavfile, DURATION, BLOCKLEN, RATE, WIDTH, CHANNELS):
 
-# ----------------------------------------------------------------------------------------------------------------------
+    N_BLOCKS = int(RATE / BLOCKLEN * DURATION)
+    output_wf = wave.open(output_wavfile + ".wav", 'w')  # wave file
+    output_wf.setframerate(RATE)
+    output_wf.setsampwidth(WIDTH)
+    output_wf.setnchannels(CHANNELS)
 
-def voice1(output_wavfile, DURATION):
-    '''
-    Do the pyaudio stuff, set the duration as the duration variable passed in
+    p = pyaudio.PyAudio()
 
-    '''
+    # Open audio stream
+    stream = p.open(
+        format=p.get_format_from_width(WIDTH),
+        channels=CHANNELS,
+        rate=RATE,
+        input=True,
+        output=True)
+
+    # This is the actual thing running
+    i = 0
+    theta = 0
+
+    for i in range(0, N_BLOCKS):
+        input_block = stream.read(BLOCKLEN)
+        signal_block = struct.unpack('h' * BLOCKLEN, input_block)
+        output_block = []
+        for j in range(0, BLOCKLEN):
+            curr_val = int(signal_block[j])
+
+            #clipping
+            if curr_val > 32767:
+                curr_val = 32767
+            elif curr_val < -32768:
+                curr_val = -32768
+
+            output_block.append(curr_val)
+
+        output_string = struct.pack('h' * BLOCKLEN, *output_block)
+
+        stream.write(output_string)
+        output_wf.writeframes(output_string)
+
+    stream.close()
+    output_wf.close()
+
 
 def voice2(output_wavfile, duration):
     pass
@@ -122,7 +128,7 @@ record_length_label.place(x=0, y=100)
 record_length_scale = tk.Scale(root, from_ = 1, to_ = 20, orient = tk.HORIZONTAL)
 record_length_scale.place(x=0, y = 120)
 
-radio1 = tk.Radiobutton(root, text="First Voice", variable = v, value = 1)
+radio1 = tk.Radiobutton(root, text="High Pitch", variable = v, value = 1)
 radio1.place(x=0, y=200)
 radio2 = tk.Radiobutton(root, text="Second Voice", variable = v, value = 2)
 radio2.place(x=0, y=220)
