@@ -310,7 +310,6 @@ def voice4(output_wavfile, DURATION, RATE, WIDTH, CHANNELS):
     output_wf.close()
     pass
 
-#Do bandpass and amplitude gain instead?
 def manualControl(output_wavfile, DURATION, BLOCKLEN, RATE, WIDTH, CHANNELS):
     frequency.update()
     amplitude.update()
@@ -338,8 +337,12 @@ def manualControl(output_wavfile, DURATION, BLOCKLEN, RATE, WIDTH, CHANNELS):
         input_block = stream.read(BLOCKLEN)
         signal_block = struct.unpack('h' * BLOCKLEN, input_block)
         output_block = []
+        curr_a = amp.get()
+        prev_a = 0
+
         for j in range(0, BLOCKLEN):
-            curr_val = int(signal_block[j])
+            gain = int(prev_a + j * (curr_a - prev_a) / BLOCKLEN)
+            curr_val = int((gain*signal_block[j])/BLOCKLEN)
 
             # clipping
             if curr_val > 32767:
@@ -348,6 +351,7 @@ def manualControl(output_wavfile, DURATION, BLOCKLEN, RATE, WIDTH, CHANNELS):
                 curr_val = -32768
 
             output_block.append(curr_val)
+            prev_a = curr_a
 
         # fast FT
         output_block = np.fft.rfft(output_block)
@@ -410,6 +414,7 @@ amp = tk.DoubleVar()
 frequency_label = tk.Label(root, text="Frequency")
 frequency_label.place(x=200, y=180)
 frequency = tk.Scale(root, from_=0, to_=600, orient=tk.VERTICAL, variable=f)
+frequency.set(300)
 frequency.place(x=200, y=200)
 
 amplitude_label = tk.Label(root, text="Amplitude")
