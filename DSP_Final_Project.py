@@ -47,7 +47,8 @@ def start(scale, entry, label, v):
         elif v.get() == 4:
             voice4(output_wavfile, DURATION, RATE, WIDTH, CHANNELS)
             print("4")
-        else:
+        elif v.get() == 5:
+            manualControl(output_wavfile, DURATION, BLOCKLEN, RATE, WIDTH, CHANNELS)
             print("5")
 
         # after whatever operation we do
@@ -309,6 +310,39 @@ def voice4(output_wavfile, DURATION, RATE, WIDTH, CHANNELS):
     output_wf.close()
     pass
 
+#Do bandpass and amplitude gain instead?
+def manualControl(output_wavfile, DURATION, BLOCKLEN, RATE, WIDTH, CHANNELS):
+    frequency.update()
+    amplitude.update()
+
+    curr_f = f.get()
+    curr_a = amp.get()
+
+    N_BLOCKS = int(RATE / BLOCKLEN * DURATION)
+    output_wf = wave.open(output_wavfile + ".wav", 'w')  # wave file
+    output_wf.setframerate(RATE)
+    output_wf.setsampwidth(WIDTH)
+    output_wf.setnchannels(CHANNELS)
+
+    p = pyaudio.PyAudio()
+
+    # Open audio stream
+    stream = p.open(
+        format=p.get_format_from_width(WIDTH),
+        channels=CHANNELS,
+        rate=RATE,
+        input=True,
+        output=True)
+
+    for i in range(0, N_BLOCKS):
+
+        input_bytes = stream.read(BLOCKLEN, exception_on_overflow=False)  # BLOCKLEN = number of frames read
+        input_binary = struct.unpack('h' * BLOCKLEN, input_bytes)
+
+        X = np.fft.rfft(input_binary)
+
+
+
 
 v = tk.IntVar()
 v.set(1)
@@ -336,14 +370,19 @@ radio4.place(x=0, y=260)
 radio5 = tk.Radiobutton(root, text="Manual", variable=v, value=5)
 radio5.place(x=0, y=280)
 
+# tk variables
+f = tk.DoubleVar()
+amp = tk.DoubleVar()
+
 frequency_label = tk.Label(root, text="Frequency")
 frequency_label.place(x=200, y=180)
-frequency = tk.Scale(root, from_=0, to_=600, orient=tk.VERTICAL)
+frequency = tk.Scale(root, from_=0, to_=600, orient=tk.VERTICAL, variable=f)
 frequency.place(x=200, y=200)
 
 amplitude_label = tk.Label(root, text="Amplitude")
 amplitude_label.place(x=270, y=180)
-amplitude = tk.Scale(root, from_=0, to_=100, orient=tk.VERTICAL)
+amplitude = tk.Scale(root, from_=0, to_=100, orient=tk.VERTICAL, variable=amp, )
+amplitude.set(50)
 amplitude.place(x=270, y=200)
 
 file_name_label = tk.Label(root, text="What file name would you like to save this wav file as?")
