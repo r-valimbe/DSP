@@ -43,7 +43,7 @@ def start(scale, entry, label, v):
             print("2")
         elif v.get() == 3:
             voice3(output_wavfile, DURATION, BLOCKLEN, RATE, WIDTH, CHANNELS)
-            print("3")
+            print("3. Roger, roger!")
         elif v.get() == 4:
             voice4(output_wavfile, DURATION, RATE, WIDTH, CHANNELS)
             print("4")
@@ -315,9 +315,6 @@ def manualControl(output_wavfile, DURATION, BLOCKLEN, RATE, WIDTH, CHANNELS):
     frequency.update()
     amplitude.update()
 
-    curr_f = f.get()
-    curr_a = amp.get()
-
     N_BLOCKS = int(RATE / BLOCKLEN * DURATION)
     output_wf = wave.open(output_wavfile + ".wav", 'w')  # wave file
     output_wf.setframerate(RATE)
@@ -335,12 +332,48 @@ def manualControl(output_wavfile, DURATION, BLOCKLEN, RATE, WIDTH, CHANNELS):
         output=True)
 
     for i in range(0, N_BLOCKS):
+        frequency.update()
+        amplitude.update()
+        pitch = int((frequency.get()) / (610) * (20) -10)
+        input_block = stream.read(BLOCKLEN)
+        signal_block = struct.unpack('h' * BLOCKLEN, input_block)
+        output_block = []
+        for j in range(0, BLOCKLEN):
+            curr_val = int(signal_block[j])
 
-        input_bytes = stream.read(BLOCKLEN, exception_on_overflow=False)  # BLOCKLEN = number of frames read
-        input_binary = struct.unpack('h' * BLOCKLEN, input_bytes)
+            # clipping
+            if curr_val > 32767:
+                curr_val = 32767
+            elif curr_val < -32768:
+                curr_val = -32768
 
-        X = np.fft.rfft(input_binary)
+            output_block.append(curr_val)
 
+        # fast FT
+        output_block = np.fft.rfft(output_block)
+
+        # pitch shift data (moving elements in an array that have been FFTd changes pitch after you IFFT it)
+        data2 = [0] * len(output_block)
+        if pitch >= 0:
+            data2[pitch:len(output_block)] = output_block[0:(len(output_block) - pitch)]
+            data2[0:pitch] = output_block[(len(output_block) - pitch):len(output_block)]
+        else:
+            data2[0:(len(output_block) + pitch)] = output_block[-pitch:len(output_block)]
+            data2[(len(output_block) + pitch):len(output_block)] = output_block[0:-pitch]
+
+        output_block = np.array(data2)
+
+        # inverse fast FT
+        output_block = np.fft.irfft(output_block)
+
+        output_data = np.array(output_block, dtype='int16')
+        output_string = struct.pack("h" * (len(output_data)), *list(output_data))
+
+        stream.write(output_string)
+        output_wf.writeframes(output_string)
+
+    stream.close()
+    output_wf.close()
 
 
 
