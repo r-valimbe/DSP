@@ -42,7 +42,7 @@ def start(scale, entry, label, v):
             voice2(output_wavfile, DURATION, BLOCKLEN, RATE, WIDTH, CHANNELS)
             print("2")
         elif v.get() == 3:
-            # voice3(output_wavfile, duration)
+            voice3(output_wavfile, DURATION, BLOCKLEN, RATE, WIDTH, CHANNELS)
             print("3")
         elif v.get() == 4:
             voice4(output_wavfile, DURATION, RATE, WIDTH, CHANNELS)
@@ -55,14 +55,15 @@ def start(scale, entry, label, v):
 
     pass
 
-
-# Rohan working on voice1 to be high pitch - not quite done yet
+# High pitch
 def voice1(output_wavfile, DURATION, BLOCKLEN, RATE, WIDTH, CHANNELS):
     N_BLOCKS = int(RATE / BLOCKLEN * DURATION)
     output_wf = wave.open(output_wavfile + ".wav", 'w')  # wave file
     output_wf.setframerate(RATE)
     output_wf.setsampwidth(WIDTH)
     output_wf.setnchannels(CHANNELS)
+
+    pitch = 30
 
     p = pyaudio.PyAudio()
 
@@ -93,7 +94,20 @@ def voice1(output_wavfile, DURATION, BLOCKLEN, RATE, WIDTH, CHANNELS):
 
             output_block.append(curr_val)
 
-        output_string = struct.pack('h' * BLOCKLEN, *output_block)
+        output_block = np.fft.rfft(output_block)
+
+        # pitch shift data (moving elements in an array that have been FFTd changes pitch after you IFFT it)
+        data2 = [0] * len(output_block)
+        data2[pitch:len(output_block)] = output_block[0:(len(output_block) - pitch)]
+        data2[0:pitch] = output_block[(len(output_block) - pitch):len(output_block)]
+
+        output_block = np.array(data2)
+
+        # inverse fast FT
+        output_block = np.fft.irfft(output_block)
+
+        output_data = np.array(output_block, dtype='int16')
+        output_string = struct.pack("h" * (len(output_data)), *list(output_data))
 
         stream.write(output_string)
         output_wf.writeframes(output_string)
@@ -165,9 +179,68 @@ def voice2(output_wavfile, DURATION, BLOCKLEN, RATE, WIDTH, CHANNELS):
     stream.close()
     output_wf.close()
 
+# Rohan - AM Modulated voice + high frequency.... tried to recreate a Star Wars Battle Droid voice (look up Star Wars Roger Roger on YT)
+def voice3(output_wavfile, DURATION, BLOCKLEN, RATE, WIDTH, CHANNELS):
 
-def voice3(output_wavfile, duration):
-    pass
+    N_BLOCKS = int(RATE / BLOCKLEN * DURATION)
+    output_wf = wave.open(output_wavfile + ".wav", 'w')  # wave file
+    output_wf.setframerate(RATE)
+    output_wf.setsampwidth(WIDTH)
+    output_wf.setnchannels(CHANNELS)
+
+    om = 2 * pi * 400 / RATE
+    theta = 0
+
+    pitch = 13
+
+    p = pyaudio.PyAudio()
+
+    # Open audio stream
+    stream = p.open(
+        format=p.get_format_from_width(WIDTH),
+        channels=CHANNELS,
+        rate=RATE,
+        input=True,
+        output=True)
+
+    output_block = [0]*BLOCKLEN
+
+    for i in range(0, N_BLOCKS):
+        input_bytes = stream.read(BLOCKLEN, exception_on_overflow=False)  # BLOCKLEN = number of frames read
+
+        input_binary = struct.unpack('h' * BLOCKLEN, input_bytes)
+
+        # Go through block
+        for n in range(0, BLOCKLEN):
+            theta = theta + om
+            output_block[n] = int(input_binary[n] * cos(theta))
+
+        # keep theta betwen -pi and pi
+        while theta > pi:
+            theta = theta - 2 * pi
+
+            # fast FT
+            output_block = np.fft.rfft(output_block)
+
+            # pitch shift data (moving elements in an array that have been FFTd changes pitch after you IFFT it)
+            data2 = [0] * len(output_block)
+            data2[pitch:len(output_block)] = output_block[0:(len(output_block) - pitch)]
+            data2[0:pitch] = output_block[(len(output_block) - pitch):len(output_block)]
+
+            output_block = np.array(data2)
+
+            # inverse fast FT
+            output_block = np.fft.irfft(output_block)
+
+            output_data = np.array(output_block, dtype='int16')
+            output_string = struct.pack("h" * (len(output_data)), *list(output_data))
+
+        # Write binary data to audio output stream
+        stream.write(output_string)
+        output_wf.writeframes(output_string)
+
+    stream.close()
+    output_wf.close()
 
 # alex's variable echo, just change delay for different levels of ~drama~
 def voice4(output_wavfile, DURATION, RATE, WIDTH, CHANNELS):
@@ -256,7 +329,7 @@ radio1 = tk.Radiobutton(root, text="High Pitch", variable=v, value=1)
 radio1.place(x=0, y=200)
 radio2 = tk.Radiobutton(root, text="Low Pitch", variable=v, value=2)
 radio2.place(x=0, y=220)
-radio3 = tk.Radiobutton(root, text="Third Voice", variable=v, value=3)
+radio3 = tk.Radiobutton(root, text="Star Wars Battle Droid", variable=v, value=3)
 radio3.place(x=0, y=240)
 radio4 = tk.Radiobutton(root, text="Voice with Echo", variable=v, value=4)
 radio4.place(x=0, y=260)
